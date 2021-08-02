@@ -52,6 +52,7 @@ class Conversions:
     def celsius_to_farenheit(temperature: float) -> float:
         """
         convert °C into °F
+
         :param temperature: in degrees Celsius
         :return: temperature in degrees Farenheit
         """
@@ -61,6 +62,7 @@ class Conversions:
     def celsius_to_kelvin(temperature: float) -> float:
         """
         convert °C in °K
+
         :param temperature: in degrees Celsius
         :return: temperature in degrees Kelvin
         """
@@ -70,6 +72,7 @@ class Conversions:
     def farenheit_to_celsius(temperature: float) -> float:
         """
         Convert °F in °C
+
         :param temperature: in degrees Farenheit
         :return: temperature in degrees Celsius
         """
@@ -78,6 +81,7 @@ class Conversions:
     @staticmethod
     def feet_to_meters(altitude: float) -> float:
         """
+
         Convert altitude in ft to m
         :param altitude:in feet
         :return: altitude in meters
@@ -88,19 +92,32 @@ class Conversions:
     def mmhg_to_mbar(pressure: float) -> float:
         """
         Convert mmHg in mbar (hPa)
+
         :param pressure: in millimeters of mercury
         :return: pressure in millibars
         """
         return pressure * 1.33322
 
     @staticmethod
+    def mbar_to_mmhg(pressure: float) -> float:
+        """
+        Convert mbar (hPa) in mmHg
+
+        :param pressure: in millibars
+        :return: pressure in millimeters of mercury
+        """
+        return pressure / 1.33322
+
+    @staticmethod
     def meters_to_feet(altitude: float) -> float:
         """
         Convert m to ft
+
         :param altitude: in meters
         :return: altitude in feet
         """
         return altitude * 3.28084
+
 
 
 def altitude(pressure: float,
@@ -111,6 +128,7 @@ def altitude(pressure: float,
              altitude_unit: AltitudeUnit) -> float:
     """
     Calculate the local altitude based on the pressure and temperature.
+
     :param pressure: measured pressure at the station.
     :param reference_pressure: Pressure on MSL
     :param pressure_unit: :py:class:PressureUnit
@@ -132,12 +150,11 @@ def altitude(pressure: float,
 
 def absolute_humidity(temperature: float, temperature_unit: TemperatureUnit, relative_humidity: float):
     """
-    Calculate the absolute humidity in [g / m³]
-    taken from https://carnotcycle.wordpress.com/2012/08/04/how-to-convert-relative-humidity-to-absolute-humidity/
-    precision is about 0.1°C in range -30 to 35°C
-    August-Roche-Magnus 	6.1094 exp(17.625 x T)/(T + 243.04)
-    Buck (1981) 		6.1121 exp(17.502 x T)/(T + 240.97)
-    reference https://www.eas.ualberta.ca/jdwilson/EAS372_13/Vomel_CIRES_satvpformulae.html
+    Calculate the absolute humidity in [g / m³] with a precision of ca. 0.1°C in [-30°C, 35°C]
+    sources:
+    https://carnotcycle.wordpress.com/2012/08/04/how-to-convert-relative-humidity-to-absolute-humidity/
+    https://www.eas.ualberta.ca/jdwilson/EAS372_13/Vomel_CIRES_satvpformulae.html
+
     :param temperature: measured temperature
     :param temperature_unit: :py:class:TemperatureUnit
     :param relative_humidity: in percent
@@ -156,14 +173,30 @@ def absolute_humidity(temperature: float, temperature_unit: TemperatureUnit, rel
 
 def equivalent_sea_level_pressure(altitude: float, altitude_unit: AltitudeUnit,
                                   temperature: float, temperature_unit: TemperatureUnit,
-                                  pressure: float) -> float:
+                                  pressure: float, pressure_unit: PressureUnit) -> float:
+    """
+    Calculate the equivalent sea level pressure (PMSL) of an air-pressure measurement
+
+    :param altitude: The altitude in which the pressure has been measured
+    :param altitude_unit: :py:class:AltitudeUnit:
+    :param temperature: The temperature at which the pressure has been measured
+    :param temperature_unit: :py:class:TemperatureUnit:
+    :param pressure: The measured pressure
+    :param pressure_unit: :py:class:PressureUnit:
+    :return: The PMSL in :py:class:Pressure:Unit
+    """
     if temperature_unit == TemperatureUnit.FARENHEIT:
         temperature = Conversions.farenheit_to_celsius(temperature)
     if altitude_unit == AltitudeUnit.FEET:
         altitude = Conversions.feet_to_meters(altitude)
+    if pressure_unit == PressureUnit.MMHG:
+        pressure = Conversions.mmhg_to_mbar(pressure)
     temperature_lapse = Constants.TEMPERATURE_LAPSE_RATE * altitude
-    return pressure / ((1 - temperature_lapse / (Conversions.celsius_to_kelvin(temperature) + temperature_lapse)) **
+    pmsl = pressure / ((1 - temperature_lapse / (Conversions.celsius_to_kelvin(temperature) + temperature_lapse)) **
                        Constants.ADIABATIC_RELATIONSHIP)
+    if pressure_unit == PressureUnit.MMHG:
+        return Conversions.mbar_to_mmhg(pmsl)
+    return pmsl
 
 
 def dew_point(temperature: float, temperature_unit: TemperatureUnit, relative_humidity: float) -> float:
